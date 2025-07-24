@@ -1,9 +1,34 @@
 import os
 import time
 import subprocess
+import ctypes
+import psutil
 from pywinauto import Desktop
 from pywinauto.keyboard import send_keys
 import pyautogui
+
+def block_input():
+    if ctypes.windll.user32.BlockInput(True):
+        print("🔒 Input blocked.")
+        return True
+    else:
+        print("❌ Failed to block input. Are you running as Administrator?")
+        return False
+
+def unblock_input():
+    ctypes.windll.user32.BlockInput(False)
+    print("🔓 Input unblocked.")
+
+def get_sqldeveloper_pids():
+    pids = set()
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmd = ' '.join(proc.info.get('cmdline') or [])
+            if 'sqldeveloper' in cmd.lower():
+                pids.add(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return pids
 
 def open_shell_desktop():
     print("📂 Opening File Explorer at 'shell:Desktop'...")
@@ -35,7 +60,7 @@ def click_sql_developer(explorer_win):
         return
 
     for item in items_view.children():
-        if item.element_info.name.lower() == "sql developer":
+        if item.element_info.name.strip().lower() == "sql developer":
             print("✅ Found 'SQL Developer'. Double-clicking...")
             item.double_click_input()
             return
@@ -118,6 +143,22 @@ def wait_and_dismiss_usage_tracking():
 
     print("❌ Oracle Usage Tracking dialog not found within timeout.")
 
+def close_windows_by_pid(pid):
+    print(f"❎ Attempting to close SQL Developer windows for PID: {pid}")
+    found = False
+    for w in Desktop(backend="win32").windows():
+        try:
+            if w.process_id() == pid:
+                print(f"🔍 Closing window: '{w.window_text()}' [Class: {w.class_name()}]")
+                w.close()
+                found = True
+        except Exception as e:
+            print(f"⚠️ Failed to close window: {e}")
+    if found:
+        print("✅ SQL Developer window(s) closed.")
+    else:
+        print("❌ No windows found matching the PID.")
+
 def close_explorer_window(window):
     print("❎ Closing File Explorer using .close()...")
     try:
@@ -126,32 +167,61 @@ def close_explorer_window(window):
     except Exception as e:
         print(f"❌ Failed to close File Explorer: {e}")
 
-def close_sql_developer():
-    print("❎ Attempting to close SQL Developer window...")
-    try:
-        dlg = Desktop(backend="win32").window(title="Oracle SQL Developer", class_name="SunAwtFrame")
-        if dlg.exists(timeout=5):
-            dlg.close()
-            print("✅ SQL Developer closed.")
-        else:
-            print("❌ SQL Developer window not found.")
-    except Exception as e:
-        print(f"⚠️ Failed to close SQL Developer: {e}")
+def terminate_launcher_if_idle(pids):
+    print("🧼 Checking if launcher processes are still running...")
+    for pid in pids:
+        try:
+            proc = psutil.Process(pid)
+            name = proc.name().lower()
+            cmd = ' '.join(proc.cmdline()).lower()
+            if 'sqldeveloper' in cmd and 'java' not in name:
+                print(f"💀 Terminating leftover launcher PID: {pid} ({name})")
+                proc.terminate()
+                proc.wait(timeout=5)
+                print("✅ Launcher process terminated.")
+        except Exception as e:
+            print(f"⚠️ Could not terminate PID {pid}: {e}")
 
 def main():
-    open_shell_desktop()
-    explorer_win = wait_for_explorer_window()
-    if not explorer_win:
-        print("❌ Could not find Desktop File Explorer window.")
-        return
+    input_was_blocked = block_input()
 
-    explorer_win.set_focus()
-    time.sleep(1)
-    click_sql_developer(explorer_win)
-    wait_and_handle_import_prompt()
-    wait_and_dismiss_usage_tracking()
-    close_sql_developer()
-    close_explorer_window(explorer_win)
+    try:
+        print("🔍 Capturing SQL Developer PIDs before launch...")
+        before_pids = get_sqldeveloper_pids()
+        print(f"📋 Before PIDs: {before_pids}")
+
+        open_shell_desktop()
+        explorer_win = wait_for_explorer_window()
+        if not explorer_win:
+            print("❌ Could not find Desktop File Explorer window.")
+            return
+
+        explorer_win.set_focus()
+        time.sleep(1)
+        click_sql_developer(explorer_win)
+
+        wait_and_handle_import_prompt()
+        wait_and_dismiss_usage_tracking()
+
+        print("⏳ Waiting 15 seconds before shutdown...")
+        time.sleep(15)
+
+        print("🔍 Capturing SQL Developer PIDs after launch...")
+        after_pids = get_sqldeveloper_pids()
+        print(f"📋 After PIDs: {after_pids}")
+
+        new_pids = after_pids - before_pids
+        print(f"🆕 New SQL Developer PIDs: {new_pids}")
+
+        for pid in new_pids:
+            close_windows_by_pid(pid)
+
+        close_explorer_window(explorer_win)
+        terminate_launcher_if_idle(new_pids)
+
+    finally:
+        if input_was_blocked:
+            unblock_input()
 
 if __name__ == "__main__":
     main()
