@@ -44,7 +44,7 @@ def click_sql_developer(explorer_win):
 
 def wait_and_handle_import_prompt():
     print("⏳ Waiting for 'Confirm Import Preferences' dialog...")
-    for attempt in range(30):
+    for attempt in range(60):
         try:
             dlg = Desktop(backend="uia").window(title_re=".*Import Preferences.*")
             if dlg.exists(timeout=1):
@@ -74,7 +74,7 @@ def wait_and_handle_import_prompt():
 
 def wait_and_dismiss_usage_tracking():
     print("⏳ Waiting for 'Oracle Usage Tracking' dialog...")
-    for attempt in range(30):  # wait up to 30 seconds for window to appear
+    for attempt in range(60):  # wait up to 60 seconds for window to appear
         try:
             dlg = Desktop(backend="win32").window(title="Oracle Usage Tracking", class_name="SunAwtDialog")
             if dlg.exists(timeout=1):
@@ -118,6 +118,14 @@ def wait_and_dismiss_usage_tracking():
 
     print("❌ Oracle Usage Tracking dialog not found within timeout.")
 
+def close_explorer_window(window):
+    print("❎ Closing File Explorer using .close()...")
+    try:
+        window.close()
+        print("✅ File Explorer closed.")
+    except Exception as e:
+        print(f"❌ Failed to close File Explorer: {e}")
+
 def main():
     open_shell_desktop()
     explorer_win = wait_for_explorer_window()
@@ -130,6 +138,7 @@ def main():
     click_sql_developer(explorer_win)
     wait_and_handle_import_prompt()
     wait_and_dismiss_usage_tracking()
+    close_explorer_window(explorer_win)
 
 if __name__ == "__main__":
     main()
