@@ -188,7 +188,10 @@ def main():
     try:
         print("🔍 Capturing SQL Developer PIDs before launch...")
         before_pids = get_sqldeveloper_pids()
-        print(f"📋 Before PIDs: {before_pids}")
+        if before_pids:
+            print(f"📋 Before PIDs: {before_pids}")
+        else:
+            print("📋 Before PIDs: {}")
 
         open_shell_desktop()
         explorer_win = wait_for_explorer_window()
