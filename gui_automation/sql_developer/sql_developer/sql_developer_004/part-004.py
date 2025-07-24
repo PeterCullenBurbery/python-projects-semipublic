@@ -126,6 +126,18 @@ def close_explorer_window(window):
     except Exception as e:
         print(f"❌ Failed to close File Explorer: {e}")
 
+def close_sql_developer():
+    print("❎ Attempting to close SQL Developer window...")
+    try:
+        dlg = Desktop(backend="win32").window(title="Oracle SQL Developer", class_name="SunAwtFrame")
+        if dlg.exists(timeout=5):
+            dlg.close()
+            print("✅ SQL Developer closed.")
+        else:
+            print("❌ SQL Developer window not found.")
+    except Exception as e:
+        print(f"⚠️ Failed to close SQL Developer: {e}")
+
 def main():
     open_shell_desktop()
     explorer_win = wait_for_explorer_window()
@@ -138,6 +150,7 @@ def main():
     click_sql_developer(explorer_win)
     wait_and_handle_import_prompt()
     wait_and_dismiss_usage_tracking()
+    close_sql_developer()
     close_explorer_window(explorer_win)
 
 if __name__ == "__main__":
