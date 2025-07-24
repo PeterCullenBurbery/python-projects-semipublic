@@ -7,10 +7,19 @@ import shutil
 import subprocess
 import time
 from pywinauto import Desktop, Application
+import ctypes
 
 INSTALLER_NAME = "python-3.13.5-amd64.exe"
 INSTALLER_URL = f"https://www.python.org/ftp/python/3.13.5/{INSTALLER_NAME}"
 INSTALLER_PATH = os.path.join(tempfile.gettempdir(), INSTALLER_NAME)
+
+def block_input():
+    print("🔒 Blocking user input...")
+    ctypes.windll.user32.BlockInput(True)
+
+def unblock_input():
+    print("🔓 Unblocking user input...")
+    ctypes.windll.user32.BlockInput(False)
 
 def download_installer():
     print(f"⬇️ Downloading Python installer to: {INSTALLER_PATH}")
@@ -149,32 +158,38 @@ def wait_for_success_and_close(title="Python 3.13.5 (64-bit) Setup", timeout=120
     print("⚠️ Timeout waiting for success message and Close button.")
 
 def main():
-    download_installer()
-    launch_installer()
+    try:
+        block_input()
 
-    # Part 004
-    win = wait_for_window("Python 3.13.5 (64-bit) Setup")
-    app = Application(backend="uia").connect(title=win.window_text())
-    dlg = app.window(title=win.window_text())
-    dump_controls(dlg)
-    part_004_configure_initial_screen(dlg)
+        download_installer()
+        launch_installer()
 
-    # Part 005
-    win = wait_for_window("Python 3.13.5 (64-bit) Setup")
-    app = Application(backend="uia").connect(title=win.window_text())
-    dlg = app.window(title=win.window_text())
-    dump_controls(dlg)
-    part_005_configure_optional_features(dlg)
+        # Part 004
+        win = wait_for_window("Python 3.13.5 (64-bit) Setup")
+        app = Application(backend="uia").connect(title=win.window_text())
+        dlg = app.window(title=win.window_text())
+        dump_controls(dlg)
+        part_004_configure_initial_screen(dlg)
 
-    # Part 006
-    win = wait_for_window("Python 3.13.5 (64-bit) Setup")
-    app = Application(backend="uia").connect(title=win.window_text())
-    dlg = app.window(title=win.window_text())
-    dump_controls(dlg)
-    part_006_configure_advanced_options(dlg)
+        # Part 005
+        win = wait_for_window("Python 3.13.5 (64-bit) Setup")
+        app = Application(backend="uia").connect(title=win.window_text())
+        dlg = app.window(title=win.window_text())
+        dump_controls(dlg)
+        part_005_configure_optional_features(dlg)
 
-    # ✅ New final step
-    wait_for_success_and_close()
+        # Part 006
+        win = wait_for_window("Python 3.13.5 (64-bit) Setup")
+        app = Application(backend="uia").connect(title=win.window_text())
+        dlg = app.window(title=win.window_text())
+        dump_controls(dlg)
+        part_006_configure_advanced_options(dlg)
+
+        # Final step
+        wait_for_success_and_close()
+
+    finally:
+        unblock_input()
 
 if __name__ == "__main__":
     main()
